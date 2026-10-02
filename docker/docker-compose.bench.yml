@@ -1,0 +1,12 @@
+# Frozen resource limits for the final benchmark. Use together with the main file:
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.bench.yml --profile app up -d --build
+# Record the limits below next to your results; change them => re-run everything.
+services:
+  kafka:
+    deploy: { resources: { limits: { cpus: "1.5", memory: 2g } } }
+  clickhouse:
+    deploy: { resources: { limits: { cpus: "3.0", memory: 4g } } }
+  redis:
+    deploy: { resources: { limits: { cpus: "0.5", memory: 512m } } }
+  app:
+    deploy: { resources: { limits: { cpus: "2.0", memory: 2g } } }

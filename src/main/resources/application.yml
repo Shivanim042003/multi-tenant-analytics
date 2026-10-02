@@ -2,15 +2,74 @@ spring:
   application:
     name: multi-tenant-analytics
 
-server:
-  port: 8080
+  datasource:
+    url: ${CLICKHOUSE_JDBC_URL:jdbc:clickhouse://localhost:8123/analytics}
+    username: ${CLICKHOUSE_USER:analytics}
+    password: ${CLICKHOUSE_PASSWORD:analytics}
+    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+    hikari:
+      maximum-pool-size: 20
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      compression-type: lz4
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        batch.size: 65536
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      type: batch
+      ack-mode: manual
+      concurrency: 3
+
+analytics:
+  security:
+    # Dev/benchmark convenience: generates keys "<prefix>tenant-001" .. "tenant-NNN".
+    # Set DEV_TENANT_COUNT=0 for anything that is not a local demo.
+    dev-tenant-count: ${DEV_TENANT_COUNT:50}
+    dev-key-prefix: dev-key-
+  kafka:
+    topic: analytics-events
+    dlq-topic: analytics-events.dlq
+    partitions: 3
+    consumer-group: analytics-ingest
+    retry-interval-ms: 1000
+    publish-timeout-ms: 10000
+  clickhouse:
+    http-url: ${CLICKHOUSE_HTTP_URL:http://localhost:8123}
+    username: ${CLICKHOUSE_USER:analytics}
+    password: ${CLICKHOUSE_PASSWORD:analytics}
+    database: ${CLICKHOUSE_DATABASE:analytics}
+    schema-variant: ${CLICKHOUSE_SCHEMA_VARIANT:optimized}   # optimized | baseline
+  cache:
+    enabled: true
+    ttl-seconds: 30
+  query:
+    max-range-days: 92
+    max-top-n: 100
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
-
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+server:
+  port: 8080

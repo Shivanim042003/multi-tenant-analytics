@@ -3,6 +3,11 @@ package com.analytics.platform.tenant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class TenantContextTest {
@@ -14,7 +19,6 @@ class TenantContextTest {
 
     @Test
     void setTenantIdThenGetTenantIdReturnsValue() {
-
         TenantContext.setTenantId("tenant-001");
 
         assertEquals("tenant-001", TenantContext.getTenantId());
@@ -22,7 +26,6 @@ class TenantContextTest {
 
     @Test
     void getTenantIdWithoutContextThrowsException() {
-
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 TenantContext::getTenantId
@@ -33,50 +36,42 @@ class TenantContextTest {
 
     @Test
     void rejectsNullTenantId() {
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> TenantContext.setTenantId(null)
-        );
+        assertThrows(IllegalArgumentException.class, () -> TenantContext.setTenantId(null));
     }
 
     @Test
     void rejectsBlankTenantId() {
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> TenantContext.setTenantId("   ")
-        );
+        assertThrows(IllegalArgumentException.class, () -> TenantContext.setTenantId("   "));
     }
 
     @Test
     void clearRemovesTenantContext() {
-
         TenantContext.setTenantId("tenant-001");
 
         TenantContext.clear();
 
-        assertThrows(
-                IllegalStateException.class,
-                TenantContext::getTenantId
-        );
+        assertThrows(IllegalStateException.class, TenantContext::getTenantId);
     }
 
     @Test
-    void tenantContextIsNotVisibleAcrossThreads() throws Exception {
+    void tenantContextIsNotVisibleAcrossThreads()
+            throws InterruptedException, ExecutionException {
 
         TenantContext.setTenantId("tenant-001");
 
-        Thread otherThread = new Thread(() -> {
-            assertThrows(
-                    IllegalStateException.class,
-                    TenantContext::getTenantId
-            );
-        });
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
-        otherThread.start();
-        otherThread.join();
+        try {
+            Future<String> future = executor.submit(() -> {
+                assertThrows(IllegalStateException.class, TenantContext::getTenantId);
+                return "child-thread-isolated";
+            });
 
-        assertEquals("tenant-001", TenantContext.getTenantId());
+            assertEquals("child-thread-isolated", future.get());
+            assertEquals("tenant-001", TenantContext.getTenantId());
+
+        } finally {
+            executor.shutdown();
+        }
     }
 }

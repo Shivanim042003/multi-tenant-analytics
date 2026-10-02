@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/** Internal event (what goes on Kafka). tenantId is always server-derived. Dedup identity: (tenantId, eventId). */
 public record AnalyticsEvent(
 
         UUID eventId,
